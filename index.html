@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TokenHandoff — OTC NFT sales, settled on proof of delivery</title>
+<meta name="theme-color" content="#0F8B8D">
+<style>
+  :root{
+    --paper:#FFFFFF; --bg:#F3F8F8; --ink:#101A1B; --ink-dim:#4D5F61; --ink-faint:#80928F;
+    --line:#DDE8E8; --iris:#0F8B8D; --iris-deep:#0B6E70; --iris-soft:#E3F4F4;
+    --mint:#2E9E5B; --mint-soft:#E4F5EA; --coral:#D2564A; --coral-soft:#FCEBE9;
+    --gold:#B8860B; --gold-soft:#FBF3DC; --radius:16px;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;
+       padding-bottom:calc(76px + env(safe-area-inset-bottom));min-height:100vh}
+  a{color:var(--iris-deep)}
+  code,.mono{font-family:var(--mono);font-size:.88em}
+  h1,h2,h3{margin:0;line-height:1.2;letter-spacing:-.01em}
+  h1{font-size:clamp(28px,6vw,42px)} h2{font-size:22px} h3{font-size:16px}
+  p{margin:0 0 10px}
+  .wrap{max-width:760px;margin:0 auto;padding:0 16px}
+
+  header.top{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
+             border-bottom:1px solid var(--line)}
+  header.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px;height:58px}
+  .brand{font-weight:800;font-size:19px;letter-spacing:-.02em;text-decoration:none;color:var(--ink)}
+  .brand span{color:var(--iris)}
+  .status-pill{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--paper);
+               border-radius:999px;padding:7px 12px;font-size:13px;color:var(--ink-dim);cursor:pointer;max-width:60vw}
+  .status-pill .label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .status-pill.connected{background:var(--mint-soft);border-color:var(--mint);color:#1B6A3A;font-weight:700}
+  .dot{width:9px;height:9px;border-radius:50%;background:#C4D0CF;flex:none}
+  .dot.on{background:var(--mint);box-shadow:0 0 0 3px var(--mint-soft)}
+
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--paper);border-top:1px solid var(--line);
+           padding-bottom:env(safe-area-inset-bottom)}
+  nav.tabs .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px 8px}
+  .tab-link{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:12px;
+            text-decoration:none;color:var(--ink-faint);font-size:12px;font-weight:600}
+  .tab-link svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .tab-link.active{color:var(--iris-deep);background:var(--iris-soft)}
+
+  .route{display:none;padding:22px 0 30px}
+  .route.active{display:block}
+
+  .hero{padding:8px 0 20px}
+  .hero p{color:var(--ink-dim);max-width:560px;margin-top:10px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 6px}
+  .stat{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px}
+  .stat b{display:block;font-size:22px} .stat span{font-size:12px;color:var(--ink-faint)}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+  .card.link{display:block;text-decoration:none;color:inherit}
+  .card.link:active{background:var(--iris-soft)}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .muted{color:var(--ink-dim)} .faint{color:var(--ink-faint);font-size:13px}
+  .terms{margin:8px 0;word-break:break-word}
+
+  .pill{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;white-space:nowrap}
+  .pill.open{background:var(--iris-soft);color:var(--iris-deep)}
+  .pill.good{background:var(--mint-soft);color:var(--mint)}
+  .pill.bad{background:var(--coral-soft);color:var(--coral)}
+  .pill.warn{background:var(--gold-soft);color:var(--gold)}
+  .pill.neutral{background:#ECEFEF;color:var(--ink-dim)}
+
+  label{display:block;font-size:13px;font-weight:700;margin:14px 0 6px}
+  .hint{font-size:12.5px;color:var(--ink-faint);margin:6px 0 0}
+  input,textarea,select{width:100%;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);
+                        border-radius:12px;padding:12px;outline:none}
+  input:focus,textarea:focus,select:focus{border-color:var(--iris);box-shadow:0 0 0 3px var(--iris-soft)}
+  textarea{min-height:92px;resize:vertical}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:520px){.grid2{grid-template-columns:1fr}}
+
+  button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:13px 16px;cursor:pointer;
+         background:var(--iris);color:#fff;width:100%;margin-top:14px}
+  button:active{background:var(--iris-deep)}
+  button.secondary{background:var(--iris-soft);color:var(--iris-deep)}
+  button.ghost{background:transparent;color:var(--iris-deep);border:1px solid var(--line)}
+  button.danger{background:var(--coral-soft);color:var(--coral)}
+  button:disabled{opacity:.5;cursor:default}
+
+  .out{display:none;margin-top:12px;border-radius:12px;padding:12px;font-family:var(--mono);font-size:12.5px;
+       white-space:pre-wrap;word-break:break-word;background:#EDF1F1;color:var(--ink-dim)}
+  .out.ok{background:var(--mint-soft);color:#1B6A3A} .out.err{background:var(--coral-soft);color:#9B2F25}
+
+  .kv{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;font-size:14px}
+  .kv dt{color:var(--ink-faint)} .kv dd{margin:0;word-break:break-word}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{background:var(--iris-soft);color:var(--iris-deep);border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:600}
+  .verdict{border-radius:var(--radius);padding:18px;margin-bottom:12px}
+  .verdict.good{background:var(--mint-soft)} .verdict.bad{background:var(--coral-soft)}
+  .verdict.warn{background:var(--gold-soft)} .verdict.neutral{background:#ECEFEF}
+  .verdict .big{font-size:22px;font-weight:800;letter-spacing:-.01em}
+  .steps{display:flex;gap:6px;margin:4px 0 14px;flex-wrap:wrap}
+  .step{font-size:11.5px;font-weight:700;border-radius:999px;padding:4px 10px;background:#ECEFEF;color:var(--ink-faint)}
+  .step.done{background:var(--mint-soft);color:var(--mint)} .step.now{background:var(--iris);color:#fff}
+  .back{display:inline-block;margin-bottom:12px;font-size:14px;text-decoration:none;font-weight:600}
+  .empty{text-align:center;color:var(--ink-faint);padding:28px 8px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--iris);
+        border-radius:50%;animation:s 0.8s linear infinite;vertical-align:-2px;margin-right:8px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .sheet{position:fixed;inset:0;z-index:50;background:rgba(16,26,27,.45);display:flex;align-items:flex-end;justify-content:center}
+  .sheet[hidden]{display:none}
+  .sheet-card{background:var(--paper);width:100%;max-width:760px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;
+              padding:18px 16px calc(24px + env(safe-area-inset-bottom))}
+  footer{max-width:760px;margin:0 auto;padding:6px 16px 30px;color:var(--ink-faint);font-size:12.5px}
+  .check{display:flex;gap:10px;align-items:center;margin-top:12px}
+  .check input{width:auto;margin:0}
+  .asset{display:flex;gap:12px;align-items:center}
+  .asset .badge{flex:none;width:44px;height:44px;border-radius:12px;background:var(--iris-soft);color:var(--iris-deep);
+                display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <a class="brand" href="#/">NFT<span>Anchor</span></a>
+  <div class="status-pill" id="walletPill" role="button" tabindex="0">
+    <span class="dot" id="statusDot"></span><span class="label" id="statusText">Connect wallet</span>
+  </div>
+</div></header>
+
+<div class="sheet" id="walletSheet" hidden>
+  <div class="sheet-card">
+    <div class="row"><h2>Connect</h2><button class="ghost" id="sheetClose" style="width:auto;margin:0;padding:8px 14px">Close</button></div>
+    <h3 style="margin-top:16px">Browser wallet</h3>
+    <p class="hint">MetaMask or any injected wallet. Open this page inside the wallet's own browser if your normal browser has none.</p>
+    <button id="connInjected">Connect browser wallet</button>
+    <h3 style="margin-top:22px">Private key (Studio accounts)</h3>
+    <p class="hint">Paste the private key of a GenLayer Studio account to act as that account. It stays in this tab's memory only and is never stored or sent anywhere except to sign your transactions. Use testnet keys only, never a key that holds real value.</p>
+    <input id="pkInput" type="password" placeholder="0x… (64 hex characters)" autocapitalize="off" autocomplete="off" spellcheck="false">
+    <button class="secondary" id="connKey">Use this account</button>
+    <h3 style="margin-top:22px">Test session</h3>
+    <p class="hint">Generates a throwaway account for this tab. Good for reading and for trying the flow with a fresh address.</p>
+    <button class="ghost" id="connTest">Start test session</button>
+    <div class="out" id="connOut"></div>
+    <button class="ghost" id="connDisconnect" hidden>Disconnect</button>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- ===== Explore ===== -->
+  <section class="route" id="route-home">
+    <div class="hero">
+      <h1>OTC NFT sales, settled on <span style="color:var(--iris)">proof of delivery</span>.</h1>
+      <p>Buyer and seller each lock a bond. The sale is anchored on-chain to one contract, token id and standard. The contract reads Blockscout data field by field: exact token, right parties, successful transaction, in time, and still held by the buyer. A staked jury can overturn the automated outcome.</p>
+      <div class="stats">
+        <div class="stat"><b id="statTrades">—</b><span>trades</span></div>
+        <div class="stat"><b id="statOpen">—</b><span>in progress</span></div>
+        <div class="stat"><b id="statDone">—</b><span>finalized</span></div>
+      </div>
+    </div>
+    <div class="card" id="contractCard" hidden>
+      <h3>Contract address</h3>
+      <p class="hint">No contract address is set. Paste the TokenHandoff address deployed on GenLayer Studio. It is remembered in this browser.</p>
+      <input id="contractInput" placeholder="0x…" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <button id="contractSave">Use this contract</button>
+    </div>
+    <div class="row"><h2>Explore</h2><a href="#/create" style="font-weight:700;text-decoration:none">+ New trade</a></div>
+    <input id="filterInput" placeholder="Filter by id, token, address, status or outcome" style="margin:12px 0">
+    <div id="tradeList"></div>
+    <button class="secondary" id="moreBtn" hidden>Load older trades</button>
+    <button class="ghost" id="refreshBtn">Refresh</button>
+  </section>
+
+  <!-- ===== Create ===== -->
+  <section class="route" id="route-create">
+    <h2>New trade</h2>
+    <p class="muted">You are the buyer (party A) and your bond is escrowed now. The seller (party B) must match it exactly to accept. The sale price itself is settled off-chain.</p>
+    <div class="card">
+      <label for="fSeller">Seller address (party B)</label>
+      <input id="fSeller" placeholder="0x…" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <label for="fTerms">Trade terms</label>
+      <textarea id="fTerms" placeholder="Seller delivers token #7 of the collection for 1 ETH paid off-chain"></textarea>
+      <label for="fCriteria">Delivery criteria</label>
+      <textarea id="fCriteria" placeholder="The exact token must reach the buyer's address before the deadline"></textarea>
+      <label for="fNft">NFT contract address</label>
+      <input id="fNft" placeholder="0x…" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <div class="grid2">
+        <div><label for="fTokenId">Token id</label><input id="fTokenId" inputmode="numeric" placeholder="7" autocomplete="off"></div>
+        <div><label for="fStd">Token standard</label>
+          <select id="fStd"><option value="ERC-721">ERC-721</option><option value="ERC-1155">ERC-1155</option></select></div>
+      </div>
+      <div id="qtyWrap" hidden>
+        <label for="fQty">Quantity (ERC-1155)</label>
+        <input id="fQty" inputmode="numeric" value="1">
+      </div>
+      <p class="hint">Recorded on-chain now. Delivery counts only for exactly this contract, token id and standard (and quantity for ERC-1155).</p>
+      <label for="fHosts">Allowed Blockscout hosts</label>
+      <input id="fHosts" value="eth.blockscout.com" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <p class="hint">Blockscout explorer(s) of the chain the NFT lives on, comma-separated, for example eth.blockscout.com. List only explorers of that one chain: the same contract address on another chain would otherwise count. Evidence must be a Blockscout v2 API link on one of these hosts.</p>
+      <div class="grid2">
+        <div><label for="fStake">Your bond (GEN)</label><input id="fStake" inputmode="decimal" placeholder="1.0"></div>
+        <div><label for="fMinSrc">Min. evidence domains</label><input id="fMinSrc" inputmode="numeric" value="1"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="fResale"> Allow resale</label>
+      <p class="hint">Unticked: the buyer must still own the token when the trade is resolved, so a transfer that was routed on to another address cannot count as delivered. If the token has moved on by then, the trade ends UNDETERMINED and each bond is returned. Tick it only if the buyer may sell it on.</p>
+      <label for="fDeadline">Deadline</label>
+      <input id="fDeadline" type="datetime-local">
+      <p class="hint">Between 1 hour and 30 days from now.</p>
+      <button id="createBtn">Create trade</button>
+      <div class="out" id="createOut"></div>
+    </div>
+  </section>
+
+  <!-- ===== Trade detail ===== -->
+  <section class="route" id="route-trade">
+    <a class="back" href="#/">← All trades</a>
+    <div id="tradeView"></div>
+  </section>
+
+  <!-- ===== Jury ===== -->
+  <section class="route" id="route-jury">
+    <h2>Jurors</h2>
+    <p class="muted">Stake GEN to be eligible for appeal juries. Minimum 0.001 GEN. Selection weight is capped, so large stakes cannot buy unlimited odds. Register before a trade is accepted: later registrations are not eligible for that trade.</p>
+    <div class="card">
+      <h3>Register or top up</h3>
+      <label for="jStake">Stake to add (GEN)</label>
+      <input id="jStake" inputmode="decimal" value="1.0">
+      <button id="jRegisterBtn">Register / add stake</button>
+      <label for="jUnstake">Unstake amount (GEN)</label>
+      <input id="jUnstake" inputmode="decimal" placeholder="0.5">
+      <button class="secondary" id="jUnstakeBtn">Unstake</button>
+      <div class="out" id="jOut"></div>
+    </div>
+    <div class="card">
+      <h3>Look up a juror</h3>
+      <label for="jAddr">Address</label>
+      <input id="jAddr" placeholder="0x… (blank = connected wallet)" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <button class="secondary" id="jLookupBtn">Get juror record</button>
+      <div class="out" id="jLookupOut"></div>
+    </div>
+  </section>
+
+  <!-- ===== Withdraw ===== -->
+  <section class="route" id="route-withdraw">
+    <h2>Balance</h2>
+    <p class="muted">Payouts are credited here first. Withdraw sends your whole balance to your own wallet.</p>
+    <div class="card">
+      <div class="row"><span class="muted">Your pending balance</span><b id="myPending">—</b></div>
+      <button id="withdrawBtn">Withdraw my balance</button>
+      <button class="ghost" id="checkPendingBtn">Refresh balance</button>
+      <div class="out" id="wOut"></div>
+    </div>
+    <div class="card">
+      <h3>Check any address</h3>
+      <label for="wAddr">Address</label>
+      <input id="wAddr" placeholder="0x…" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <button class="secondary" id="wLookupBtn">Check pending balance</button>
+      <div class="row" style="margin-top:14px"><span class="muted">Total held by contract</span><b id="contractBal">—</b></div>
+      <div class="out" id="wLookupOut"></div>
+    </div>
+    <div class="card">
+      <h3>Fund a Studio account (testnet only)</h3>
+      <p class="hint">GenLayer Studio is a simulator, so it can credit test GEN to any address. This asks the Studio RPC to do it. It is an experimental call: if the response shows an error, the Studio version may not support it.</p>
+      <label for="fundAddr">Address (blank = connected wallet)</label>
+      <input id="fundAddr" placeholder="0x…" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <label for="fundAmt">Amount (whole GEN, 1 to 100)</label>
+      <input id="fundAmt" inputmode="numeric" value="10">
+      <button class="secondary" id="fundBtn">Request test GEN</button>
+      <div class="out" id="fundOut"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  TokenHandoff on GenLayer Studio · contract <span class="mono" id="contractAddrText"></span><br>
+  No-build reference frontend (genlayer-js). See ARCHITECTURE.md for the trust model and known limitations.
+</footer>
+
+<nav class="tabs"><div class="wrap">
+  <a class="tab-link" data-tab="home" href="#/">
+    <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Explore</a>
+  <a class="tab-link" data-tab="create" href="#/create">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Create</a>
+  <a class="tab-link" data-tab="jury" href="#/jury">
+    <svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>Jury</a>
+  <a class="tab-link" data-tab="withdraw" href="#/withdraw">
+    <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>Balance</a>
+</div></nav>
+
+<script type="module">
+import { createClient, createAccount } from "https://esm.sh/genlayer-js@latest";
+import { studionet } from "https://esm.sh/genlayer-js@latest/chains";
+
+/* Set the deployed contract here, or open the page once with ?contract=0x… (it is remembered in this browser). */
+const DEFAULT_CONTRACT = "0x14a656c20bE9DeE12a9D6AfBAB669ADe259954B5";
+const ZERO = "0x0000000000000000000000000000000000000000";
+const OUTCOMES = ["ASSET_DELIVERED", "PARTIALLY_DELIVERED", "NOT_DELIVERED", "UNDETERMINED"];
+const PAGE_SIZE = 20;
+const MIN_APPEAL_BOND = 10n ** 15n;
+
+const $ = (id) => document.getElementById(id);
+
+function storeGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+function storeSet(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* storage unavailable */ } }
+
+function resolveContract() {
+  let fromQuery = "";
+  try { fromQuery = new URLSearchParams(location.search).get("contract") || ""; } catch (e) { fromQuery = ""; }
+  if (/^0x[0-9a-fA-F]{40}$/.test(fromQuery)) { storeSet("tokenhandoff:contract", fromQuery); return fromQuery; }
+  const saved = storeGet("tokenhandoff:contract") || "";
+  if (/^0x[0-9a-fA-F]{40}$/.test(saved)) return saved;
+  return DEFAULT_CONTRACT;
+}
+let CONTRACT_ADDRESS = resolveContract();
+const contractSet = () => CONTRACT_ADDRESS.toLowerCase() !== ZERO;
+function showContract() {
+  $("contractAddrText").textContent = contractSet() ? CONTRACT_ADDRESS.slice(0, 8) + "…" + CONTRACT_ADDRESS.slice(-6) : "not set";
+  $("contractCard").hidden = contractSet();
+}
+showContract();
+
+/* ---------- tiny DOM helper: text nodes only, so contract data is always rendered as text ---------- */
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k === "text") el.textContent = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.appendChild(typeof kid === "string" || typeof kid === "number" ? document.createTextNode(String(kid)) : kid);
+  }
+  return el;
+}
+const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); return el; };
+const short = (a) => (a ? a.slice(0, 6) + "…" + a.slice(-4) : "—");
+const same = (a, b) => !!a && !!b && String(a).toLowerCase() === String(b).toLowerCase();
+const fmtTime = (iso) => { try { return new Date(iso).toLocaleString(); } catch (e) { return String(iso); } };
+const isPast = (iso) => { try { return Date.now() > new Date(iso).getTime(); } catch (e) { return false; } };
+const shortId = (id) => (String(id).length > 14 ? String(id).slice(0, 6) + "…" + String(id).slice(-5) : String(id));
+
+function showOut(el, text, kind) {
+  el.style.display = "block";
+  el.textContent = typeof text === "string" ? text : JSON.stringify(text, null, 2);
+  el.classList.remove("ok", "err");
+  if (kind) el.classList.add(kind);
+}
+
+/* ---------- GEN <-> wei, exact BigInt only ---------- */
+const WEI_PER_GEN = 1000000000000000000n;
+function genToWei(s) {
+  const t = String(s).trim();
+  if (!t) return null;
+  const p = t.split(".");
+  if (p.length > 2) return null;
+  const whole = p[0] || "0";
+  const frac = p[1] || "";
+  if (!/^\d+$/.test(whole) || (frac && !/^\d+$/.test(frac)) || frac.length > 18) return null;
+  try { return BigInt(whole) * WEI_PER_GEN + BigInt(frac.padEnd(18, "0") || "0"); } catch (e) { return null; }
+}
+function weiToGen(w) {
+  let wei;
+  try { wei = BigInt(w); } catch (e) { return String(w); }
+  const frac = (wei % WEI_PER_GEN).toString().padStart(18, "0").replace(/0+$/, "");
+  return frac ? `${wei / WEI_PER_GEN}.${frac}` : (wei / WEI_PER_GEN).toString();
+}
+
+/* ---------- wallet ---------- */
+let client = null;
+let account = null;
+let usingInjected = false;
+function hexChainId() { return "0x" + Number(studionet.id).toString(16); }
+async function ensureChain() {
+  if (!usingInjected || !window.ethereum) return;
+  const cur = await window.ethereum.request({ method: "eth_chainId" });
+  if (String(cur).toLowerCase() === hexChainId().toLowerCase()) return;
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hexChainId() }] });
+  } catch (e) {
+    await window.ethereum.request({
+      method: "wallet_addEthereumChain",
+      params: [{
+        chainId: hexChainId(),
+        chainName: studionet.name || "GenLayer Studio",
+        nativeCurrency: studionet.nativeCurrency || { name: "GEN", symbol: "GEN", decimals: 18 },
+        rpcUrls: studionet.rpcUrls?.default?.http || [],
+      }],
+    });
+  }
+}
+const readClient = createClient({ chain: studionet });
+
+function setStatus(on, label) {
+  $("statusDot").classList.toggle("on", on);
+  $("walletPill").classList.toggle("connected", on);
+  $("statusText").textContent = label;
+}
+const sheet = $("walletSheet");
+function openSheet() {
+  $("connDisconnect").hidden = !client;
+  $("connOut").style.display = "none";
+  sheet.hidden = false;
+}
+function closeSheet() { sheet.hidden = true; $("pkInput").value = ""; }
+function connected(label) { setStatus(true, label); closeSheet(); route(); }
+
+async function connectInjected() {
+  const out = $("connOut");
+  if (!window.ethereum) {
+    showOut(out, "No browser wallet found in this browser. Open this page inside your wallet app's browser, or use a private key below.", "err");
+    return;
+  }
+  try {
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    account = accounts[0];
+    client = createClient({ chain: studionet, account });
+    usingInjected = true;
+    try { await ensureChain(); } catch (e) { showOut(out, "Connected, but could not switch the wallet to the GenLayer Studio network: " + (e?.message || String(e)), "err"); }
+    connected(short(account));
+  } catch (e) { showOut(out, "Connection failed: " + (e?.message || String(e)), "err"); }
+}
+function connectKey() {
+  const out = $("connOut");
+  let pk = $("pkInput").value.trim();
+  if (/^[0-9a-fA-F]{64}$/.test(pk)) pk = "0x" + pk;
+  if (!/^0x[0-9a-fA-F]{64}$/.test(pk)) return showOut(out, "That is not a valid private key: expected 64 hex characters, optionally starting with 0x.", "err");
+  try {
+    const acct = createAccount(pk);
+    account = acct.address;
+    usingInjected = false;
+    client = createClient({ chain: studionet, account: acct });
+    connected(short(account));
+  } catch (e) { showOut(out, "Could not use this key: " + (e?.message || String(e)), "err"); }
+}
+function startTestSession() {
+  const generated = createAccount();
+  account = generated.address ?? generated;
+  usingInjected = false;
+  client = createClient({ chain: studionet, account: generated });
+  connected("Test · " + short(account));
+}
+function disconnect() {
+  client = null; account = null;
+  setStatus(false, "Connect wallet");
+  closeSheet(); route();
+}
+$("walletPill").addEventListener("click", openSheet);
+$("sheetClose").addEventListener("click", closeSheet);
+sheet.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });
+$("connInjected").addEventListener("click", connectInjected);
+$("connKey").addEventListener("click", connectKey);
+$("connTest").addEventListener("click", startTestSession);
+$("connDisconnect").addEventListener("click", disconnect);
+
+$("contractSave").addEventListener("click", () => {
+  const v = $("contractInput").value.trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(v)) return;
+  storeSet("tokenhandoff:contract", v);
+  CONTRACT_ADDRESS = v;
+  showContract();
+  route();
+});
+
+function needClient(out) {
+  if (client) return true;
+  showOut(out, "Tap the wallet button at the top to connect first.", "err");
+  openSheet();
+  return false;
+}
+
+/* ---------- contract calls ---------- */
+function unwrap(receipt) {
+  let v = receipt?.consensus_data?.leader_receipt?.[0]?.result?.payload?.readable;
+  if (v === undefined) return null;
+  for (let i = 0; i < 3; i++) {
+    if (typeof v !== "string") break;
+    const t = v.trim();
+    if (!(t.startsWith("{") || t.startsWith("[") || t.startsWith('"'))) break;
+    try { v = JSON.parse(v); } catch (e) { break; }
+  }
+  return v;
+}
+async function read(functionName, args = []) {
+  return readClient.readContract({ address: CONTRACT_ADDRESS, functionName, args });
+}
+async function readJson(functionName, args = []) {
+  const raw = await read(functionName, args);
+  return typeof raw === "string" ? JSON.parse(raw) : raw;
+}
+async function write(out, label, functionName, args, valueWei) {
+  if (!needClient(out)) return null;
+  if (!contractSet()) { showOut(out, "No contract address is set. Open Explore and paste the deployed address first.", "err"); return null; }
+  try {
+    showOut(out, `Sending ${label}… check your wallet for a confirmation request.`);
+    await ensureChain();
+    const slow = setTimeout(() => showOut(out,
+      `Still waiting for the wallet to answer ${label}.\nOpen your wallet app and look for a pending request. If none appears, the wallet is probably on the wrong network or did not receive the request.`), 20000);
+    let hash;
+    try { hash = await client.writeContract({ address: CONTRACT_ADDRESS, functionName, args, value: valueWei ?? 0n }); }
+    finally { clearTimeout(slow); }
+    showOut(out, `Sent ${short(hash)}. Waiting for finalization…`);
+    const receipt = await client.waitForTransactionReceipt({ hash, status: "FINALIZED", interval: 4000, retries: 45 });
+    const result = unwrap(receipt);
+    const failed = receipt?.consensus_data?.leader_receipt?.[0]?.execution_result === "ERROR";
+    if (failed) { showOut(out, "The contract rejected this call. Check the details and try again.\n\nTx: " + hash, "err"); return null; }
+    showOut(out, "Done.\n\nTx: " + hash, "ok");
+    return result === null ? true : result;
+  } catch (e) {
+    showOut(out, "Error: " + (e?.message || String(e)), "err");
+    return null;
+  }
+}
+
+/* ---------- status helpers ---------- */
+const STEPS = [
+  ["created", "Created"], ["accepted", "Accepted"], ["proof_frozen", "Proof"],
+  ["ruled", "Ruling"], ["jury_voting", "Appeal"], ["finalized", "Final"],
+];
+const STATUS_LABEL = {
+  created: "Waiting for seller", accepted: "Awaiting proof", proof_frozen: "Proof frozen",
+  ruled: "Ruling issued", appeal_filed: "Appeal filed", jury_voting: "Jury voting", finalized: "Finalized", cancelled: "Cancelled",
+};
+const OUTCOME_LABEL = {
+  ASSET_DELIVERED: "Delivered", PARTIALLY_DELIVERED: "Partially delivered", NOT_DELIVERED: "Not delivered", UNDETERMINED: "Undetermined",
+};
+function outcomeOf(t) { return t.final_outcome || t.tier1_outcome || t.outcome || null; }
+function outcomeTone(t) {
+  if (t.status === "cancelled") return "neutral";
+  const o = outcomeOf(t);
+  if (!o) return "open";
+  if (t.status !== "finalized") return "warn";
+  if (o === "ASSET_DELIVERED") return "good";
+  if (o === "NOT_DELIVERED") return "bad";
+  if (o === "PARTIALLY_DELIVERED") return "warn";
+  return "neutral";
+}
+function assetLine(t) {
+  const q = t.token_standard === "ERC-1155" ? ` × ${t.token_quantity}` : "";
+  return `${t.token_standard} #${shortId(t.token_id)}${q}`;
+}
+
+/* ---------- Explore (backed by the get_trades_page view) ---------- */
+let allTrades = [];
+let totalTrades = 0;
+async function loadList(append) {
+  const list = $("tradeList");
+  if (!contractSet()) {
+    clear(list).appendChild(h("div", { class: "empty" }, "Set the contract address above to browse trades."));
+    $("moreBtn").hidden = true;
+    return;
+  }
+  if (!append) {
+    clear(list).appendChild(h("div", { class: "empty" }, h("span", { class: "spin" }), "Loading trades…"));
+    allTrades = [];
+  }
+  try {
+    const page = await readJson("get_trades_page", [allTrades.length, PAGE_SIZE]);
+    totalTrades = Number(page.total);
+    allTrades = allTrades.concat(page.trades || []);
+    $("statTrades").textContent = String(totalTrades);
+    $("statOpen").textContent = String(allTrades.filter((t) => !["finalized", "cancelled"].includes(t.status)).length);
+    $("statDone").textContent = String(allTrades.filter((t) => t.status === "finalized").length);
+    $("moreBtn").hidden = allTrades.length >= totalTrades;
+    renderList();
+  } catch (e) {
+    clear(list).appendChild(h("div", { class: "empty" }, "Could not load trades. The network may be unreachable or the contract address wrong; tap Refresh to retry."));
+  }
+}
+function renderList() {
+  const list = clear($("tradeList"));
+  const q = $("filterInput").value.trim().toLowerCase();
+  const rows = allTrades.filter((t) =>
+    !q || [t.trade_id, t.terms, t.buyer, t.seller, t.nft_contract, t.token_id, t.status, outcomeOf(t) || ""].join(" ").toLowerCase().includes(q));
+  if (!rows.length) {
+    list.appendChild(h("div", { class: "empty" }, allTrades.length ? "No trades match this filter." : "No trades yet. Create the first one."));
+    return;
+  }
+  for (const t of rows) {
+    const o = outcomeOf(t);
+    list.appendChild(h("a", { class: "card link", href: `#/trade/${t.trade_id}` },
+      h("div", { class: "row" },
+        h("div", { class: "asset" },
+          h("div", { class: "badge", text: t.token_standard === "ERC-1155" ? "1155" : "721" }),
+          h("div", null, h("b", { class: "mono", text: assetLine(t) }), h("div", { class: "faint", text: `${t.trade_id} · ${short(t.nft_contract)}` }))),
+        h("span", { class: `pill ${outcomeTone(t)}`, text: t.status === "cancelled" ? "CANCELLED" : (o ? OUTCOME_LABEL[o] || o : STATUS_LABEL[t.status] || t.status) })),
+      h("div", { class: "terms", text: t.terms }),
+      h("div", { class: "row faint" },
+        h("span", { text: `${short(t.buyer)} ← ${short(t.seller)}` }),
+        h("span", { text: `${weiToGen(t.stake_amount)} GEN bond each` }))));
+  }
+}
+$("filterInput").addEventListener("input", renderList);
+$("refreshBtn").addEventListener("click", () => loadList(false));
+$("moreBtn").addEventListener("click", () => loadList(true));
+
+/* ---------- Create ---------- */
+function defaultDeadline() {
+  const d = new Date(Date.now() + 26 * 3600000);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+$("fDeadline").value = defaultDeadline();
+$("fStd").addEventListener("change", () => { $("qtyWrap").hidden = $("fStd").value !== "ERC-1155"; });
+
+$("createBtn").addEventListener("click", async () => {
+  const out = $("createOut");
+  if (!needClient(out)) return;
+  const v = (id) => $(id).value.trim();
+  const stakeWei = genToWei(v("fStake"));
+  const deadline = new Date(v("fDeadline"));
+  const minSources = parseInt(v("fMinSrc"), 10);
+  const is1155 = v("fStd") === "ERC-1155";
+  if (!/^0x[0-9a-fA-F]{40}$/.test(v("fSeller"))) return showOut(out, "Enter the seller's 0x address.", "err");
+  if (!v("fTerms")) return showOut(out, "Enter the trade terms.", "err");
+  if (!v("fCriteria")) return showOut(out, "Enter the delivery criteria.", "err");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(v("fNft"))) return showOut(out, "Enter the NFT contract's 0x address.", "err");
+  if (!/^(\d+|0[xX][0-9a-fA-F]+)$/.test(v("fTokenId"))) return showOut(out, "Token id must be a whole number (decimal or 0x hex).", "err");
+  if (is1155 && !/^[1-9]\d{0,29}$/.test(v("fQty"))) return showOut(out, "Quantity must be a whole number of at least 1.", "err");
+  if (!v("fHosts")) return showOut(out, "Enter at least one allowed Blockscout host.", "err");
+  if (stakeWei === null || stakeWei <= 0n) return showOut(out, "Enter a valid positive bond in GEN.", "err");
+  if (isNaN(deadline.getTime())) return showOut(out, "Enter a valid deadline.", "err");
+  const leadH = (deadline.getTime() - Date.now()) / 3600000;
+  if (leadH < 1.05 || leadH > 29.9 * 24) return showOut(out, "Deadline must be between 1 hour and 30 days from now.", "err");
+  if (!Number.isInteger(minSources) || minSources < 1) return showOut(out, "Min. evidence domains must be a whole number of at least 1.", "err");
+  const quantity = is1155 ? BigInt(v("fQty")) : 1n;
+  const id = await write(out, "create_trade", "create_trade",
+    [v("fSeller"), v("fTerms"), v("fCriteria"), v("fNft"), v("fTokenId"), v("fStd"), quantity, v("fHosts"),
+      deadline.toISOString(), $("fResale").checked, minSources], stakeWei);
+  if (id && typeof id === "string") location.hash = `#/trade/${id}`;
+});
+
+/* ---------- Trade detail ---------- */
+const savedKey = (id) => `tokenhandoff:${CONTRACT_ADDRESS}:${id}:${(account || "").toLowerCase()}`;
+function saveVote(id, vote, salt) { storeSet(savedKey(id), JSON.stringify({ vote, salt })); }
+function loadVote(id) { try { return JSON.parse(storeGet(savedKey(id)) || "null"); } catch (e) { return null; } }
+async function sha256Hex(text) {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(d)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function randomSalt() {
+  const a = new Uint8Array(12); crypto.getRandomValues(a);
+  return Array.from(a).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function appealBondWei(stakeWei) {
+  const s = BigInt(stakeWei);
+  let b = (s * 2000n) / 10000n;
+  if (b < MIN_APPEAL_BOND) b = MIN_APPEAL_BOND;
+  const max = 10n ** 30n;
+  return b > max ? max : b;
+}
+
+function kv(pairs) {
+  const dl = h("dl", { class: "kv" });
+  for (const [k, v] of pairs) {
+    if (v === null || v === undefined || v === "") continue;
+    dl.appendChild(h("dt", { text: k }));
+    dl.appendChild(h("dd", null, v));
+  }
+  return dl;
+}
+function actionCard(title, note, ...body) {
+  return h("div", { class: "card" }, h("h3", { text: title }), note ? h("p", { class: "hint", text: note }) : null, ...body);
+}
+function actionButton(label, kind, handler) {
+  const out = h("div", { class: "out" });
+  const btn = h("button", { class: kind || "", text: label });
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    try { const r = await handler(out); if (r) setTimeout(() => renderTrade(currentTradeId), 600); }
+    finally { btn.disabled = false; }
+  });
+  return [btn, out];
+}
+
+/* Builds the Blockscout API links this contract accepts, from a transaction hash. */
+function proofLinks(t, host, txHash) {
+  const base = `https://${host}/api/v2`;
+  const links = [];
+  if (/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+    links.push(`${base}/transactions/${txHash.toLowerCase()}`);
+    links.push(`${base}/transactions/${txHash.toLowerCase()}/token-transfers`);
+  }
+  links.push(`${base}/tokens/${t.nft_contract}/instances/${t.token_id}`);
+  if (t.token_standard === "ERC-1155") links.push(`${base}/tokens/${t.nft_contract}/instances/${t.token_id}/holders`);
+  return links;
+}
+
+let currentTradeId = null;
+async function renderTrade(id) {
+  currentTradeId = id;
+  const view = clear($("tradeView"));
+  if (!contractSet()) { view.appendChild(h("div", { class: "empty" }, "Set the contract address on the Explore page first.")); return; }
+  view.appendChild(h("div", { class: "empty" }, h("span", { class: "spin" }), "Loading " + id + "…"));
+  let t;
+  try { t = await readJson("get_trade", [id]); }
+  catch (e) { clear(view).appendChild(h("div", { class: "empty" }, "Trade not found: " + id)); return; }
+  clear(view);
+
+  const o = outcomeOf(t);
+  const me = account;
+  const isBuyer = same(me, t.party_a), isSeller = same(me, t.party_b);
+  const role = isBuyer ? "You are the buyer (party A)" : isSeller ? "You are the seller (party B)" : null;
+
+  view.appendChild(h("div", { class: "row", style: "margin-bottom:6px" },
+    h("h2", { class: "mono", text: t.trade_id }),
+    h("span", { class: `pill ${outcomeTone(t)}`, text: STATUS_LABEL[t.status] || t.status })));
+  if (role) view.appendChild(h("p", { class: "faint", text: role }));
+
+  if (t.status !== "cancelled") {
+    const idx = STEPS.findIndex((s) => s[0] === (t.status === "appeal_filed" ? "jury_voting" : t.status));
+    const steps = h("div", { class: "steps" });
+    STEPS.forEach((s, i) => {
+      if (s[0] === "jury_voting" && !t.appeal) return;
+      steps.appendChild(h("span", { class: "step " + (i < idx ? "done" : i === idx ? "now" : ""), text: s[1] }));
+    });
+    view.appendChild(steps);
+  }
+
+  if (t.status === "finalized" && o) {
+    view.appendChild(h("div", { class: `verdict ${outcomeTone(t)}` },
+      h("div", { class: "faint", text: "Final outcome" }), h("div", { class: "big", text: o })));
+  } else if (t.tier1_outcome) {
+    view.appendChild(h("div", { class: `verdict ${outcomeTone(t)}` },
+      h("div", { class: "faint", text: "Automated outcome (can be appealed)" }),
+      h("div", { class: "big", text: t.tier1_outcome }),
+      h("p", { class: "muted", style: "margin-top:8px", text: t.tier1_reasoning || "" }),
+      h("span", { class: "pill " + (t.tier1_outcome === "UNDETERMINED" ? "neutral" : t.tier1_ceiling === t.tier1_outcome ? "good" : "warn"),
+        text: t.tier1_outcome === "UNDETERMINED" ? "The evidence did not settle the question"
+          : t.tier1_ceiling === t.tier1_outcome ? "Code checks support this outcome" : "Code checks cap this at " + (t.tier1_ceiling || "UNDETERMINED") }),
+      h("p", { class: "hint", text: t.tier1_reason ? "Check result: " + t.tier1_reason : "" })));
+  }
+
+  view.appendChild(h("div", { class: "card" },
+    h("div", { class: "asset", style: "margin-bottom:10px" },
+      h("div", { class: "badge", text: t.token_standard === "ERC-1155" ? "1155" : "721" }),
+      h("div", null, h("b", { class: "mono", text: assetLine(t) }), h("div", { class: "faint", text: "Anchored on-chain at creation" }))),
+    h("p", { class: "terms", text: t.trade_terms }),
+    h("p", { class: "muted", text: t.delivery_criteria }),
+    kv([
+      ["Buyer (A)", h("span", { class: "mono", text: t.party_a })],
+      ["Seller (B)", h("span", { class: "mono", text: t.party_b })],
+      ["NFT contract", h("span", { class: "mono", text: t.nft_contract })],
+      ["Token id", h("span", { class: "mono", text: t.token_id })],
+      ["Standard", t.token_standard + (t.token_standard === "ERC-1155" ? ` × ${t.token_quantity}` : "")],
+      ["Resale", t.allow_resale ? "Allowed: current owner not checked" : "Not allowed: buyer must still hold it"],
+      ["Bond", `${weiToGen(t.stake_amount)} GEN each`],
+      ["Deadline", fmtTime(t.deadline)],
+      ["Min. domains", String(t.min_evidence_sources)],
+      ["Claimed transfer", t.claimed_transfer ? h("span", { class: "mono", text: t.claimed_transfer }) : ""],
+    ]),
+    h("div", { style: "margin-top:12px" }, h("div", { class: "faint", text: "Allowed Blockscout hosts" }),
+      h("div", { class: "chips", style: "margin-top:6px" }, (t.allowed_evidence_hosts || []).map((d) => h("span", { class: "chip", text: d }))))));
+
+  if (t.evidence_snapshot) {
+    const s = t.evidence_snapshot;
+    view.appendChild(h("div", { class: "card" }, h("h3", { text: "Frozen proof links" }),
+      h("div", { style: "margin-top:8px" }, s.source_urls.map((u) => h("div", { class: "mono", style: "word-break:break-all;margin-bottom:6px", text: u }))),
+      kv([["Frozen", fmtTime(s.locked_at)], ["Submitted by", h("span", { class: "mono", text: (s.submitted_by || []).map(short).join(", ") })],
+          ["URL set hash", h("span", { class: "mono", text: short(s.evidence_url_set_hash) })],
+          ["Content root", t.evidence_content_root ? h("span", { class: "mono", text: short(t.evidence_content_root) }) : ""]])));
+  }
+
+  if (t.jury) {
+    const j = t.jury;
+    view.appendChild(h("div", { class: "card" }, h("h3", { text: "Appeal jury" }),
+      kv([
+        ["Appellant", h("span", { class: "mono", text: short(t.appeal?.appellant) })],
+        ["Bond", t.appeal ? `${weiToGen(t.appeal.bond_amount)} GEN` : ""],
+        ["Commit until", fmtTime(j.commit_deadline)], ["Reveal until", fmtTime(j.reveal_deadline)],
+        ["Commits / reveals", `${Object.keys(j.commits || {}).length} / ${Object.keys(j.reveals || {}).length}`],
+        ["Jury result", j.provisional_outcome ? (j.verification_passed === true ? "verified: " : "provisional: ") + j.provisional_outcome : ""],
+      ]),
+      h("div", { class: "faint", style: "margin-top:10px", text: "Selected jurors" }),
+      h("div", { style: "margin-top:4px" }, (j.selected_jurors || []).map((a) => h("div", { class: "mono", style: "word-break:break-all", text: a })))));
+  }
+
+  /* ----- contextual actions ----- */
+  const acts = h("div");
+  const st = t.status;
+
+  if (st === "created") {
+    const [b1, o1] = actionButton(`Accept and send ${weiToGen(t.stake_amount)} GEN`, "", (out) =>
+      write(out, "accept_trade", "accept_trade", [t.trade_id], BigInt(t.stake_amount)));
+    const wrongWallet = account && !isSeller;
+    acts.appendChild(actionCard("Accept this trade",
+      wrongWallet ? "You are connected as " + short(account) + ", which is not the seller. Reconnect as " + short(t.party_b) + " to accept; any other wallet is rejected by the contract."
+                  : "Only the seller can accept, with exactly the same bond. Check the anchored token and the allowed hosts first.", b1, o1));
+    const [b2, o2] = actionButton("Cancel trade", "danger", (out) => write(out, "cancel_trade", "cancel_trade", [t.trade_id]));
+    acts.appendChild(actionCard("Cancel", "Only the buyer, and only before acceptance. Your bond is refunded.", b2, o2));
+  }
+
+  if (st === "accepted") {
+    const subs = t.evidence_submissions || {};
+    const keys = Object.keys(subs);
+    const mine = account ? subs[String(account).toLowerCase()] : null;
+    const bothIn = keys.length >= 2;
+    const lockAt = t.evidence_lock_at;
+    const graceOver = lockAt ? isPast(lockAt) : false;
+
+    acts.appendChild(h("div", { class: "card" }, h("h3", { text: "Proof so far" }),
+      h("p", { class: "hint", text: keys.length
+        ? `${keys.length} of 2 parties have submitted. The proof freezes when both have, or after the counterparty window (${fmtTime(lockAt)}).`
+        : "Nobody has submitted yet. Each party can submit once; the first submission does not freeze anything." }),
+      ...keys.map((k) => h("div", { style: "margin-top:8px" },
+        h("div", { class: "faint", text: short(k) }),
+        ...subs[k].map((u) => h("div", { class: "mono", style: "word-break:break-all", text: u }))))));
+
+    if ((isBuyer || isSeller) && !mine && !(lockAt && graceOver) && !isPast(t.evidence_deadline)) {
+      const ta = h("textarea", { placeholder: "One Blockscout API link per line (max 5)", spellcheck: "false", autocapitalize: "off" });
+      const hostSel = h("select", null, (t.allowed_evidence_hosts || []).map((x) => h("option", { value: x, text: x })));
+      const txIn = h("input", { placeholder: "Delivery transaction hash 0x… (64 hex)", autocapitalize: "off", spellcheck: "false" });
+      const build = h("button", { class: "ghost", text: "Fill links from this hash" });
+      build.addEventListener("click", () => { ta.value = proofLinks(t, hostSel.value, txIn.value.trim()).join("\n"); });
+      const [b, o2] = actionButton("Submit my proof", "", (out) => {
+        const urls = ta.value.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
+        if (!urls.length) { showOut(out, "Enter at least one link.", "err"); return null; }
+        return write(out, "submit_proof", "submit_proof", [t.trade_id, urls]);
+      });
+      acts.appendChild(actionCard("Submit proof",
+        "Links must be Blockscout v2 API links on an allowed host: the transaction, its token-transfers, and the token instance (it shows the current owner). Without the instance link a delivery stays UNDETERMINED unless resale is allowed.",
+        h("label", { text: "Host" }), hostSel, h("label", { text: "Transaction hash" }), txIn, build,
+        h("label", { text: "Links" }), ta, b, o2));
+    } else if (account && !(isBuyer || isSeller)) {
+      acts.appendChild(h("p", { class: "hint", text: "Only the two parties can submit proof." }));
+    } else if (mine) {
+      acts.appendChild(h("p", { class: "hint", text: "You have already submitted your proof." }));
+    }
+
+    if (keys.length && (bothIn || graceOver)) {
+      const [bl, ol] = actionButton("Freeze proof", "", (out) => write(out, "freeze_proof", "freeze_proof", [t.trade_id]));
+      acts.appendChild(actionCard("Freeze the proof", "Anyone can do this once both parties have submitted or the counterparty window has closed. Needs at least " + t.min_evidence_sources + " distinct evidence domain(s) in total (several hosts of one site count once).", bl, ol));
+    }
+
+    if (isPast(t.evidence_deadline)) {
+      const [be, oe] = actionButton("Close trade and refund both bonds", "secondary", (out) =>
+        write(out, "expire_no_proof", "expire_no_proof", [t.trade_id]));
+      acts.appendChild(actionCard("Proof window closed",
+        "No proof was frozen before " + fmtTime(t.evidence_deadline) + ". Anyone can call this. Submitted proof that can be frozen is frozen and goes to the ruling; otherwise the trade ends as UNDETERMINED and both bonds are refunded.", be, oe));
+    }
+  }
+
+  if (st === "proof_frozen") {
+    const [b, o2] = actionButton("Get the automated ruling", "", (out) => write(out, "resolve_delivery", "resolve_delivery", [t.trade_id]));
+    acts.appendChild(actionCard("Resolve delivery", "Anyone can run this. Validators fetch the frozen links and check every transfer field in code: contract, token id, standard, sender, receiver, success, time and current owner. It can take a minute or two. Before the deadline only a proven delivery can be recorded; otherwise the call is rejected and can be run again after the deadline.", b, o2));
+    const lockedAt = t.evidence_snapshot && t.evidence_snapshot.locked_at;
+    const recoverBase = lockedAt ? Math.max(new Date(lockedAt).getTime(), new Date(t.deadline).getTime()) : 0;
+    if (lockedAt && Date.now() > recoverBase + 7 * 86400000) {
+      const [bx, ox] = actionButton("Close trade and refund both bonds", "secondary", (out) =>
+        write(out, "expire_stalled_ruling", "expire_stalled_ruling", [t.trade_id]));
+      acts.appendChild(actionCard("Ruling timed out",
+        "No ruling was produced within 7 days of the freeze or the deadline. Anyone can close the trade; it ends as UNDETERMINED and both bonds are refunded.", bx, ox));
+    }
+  }
+
+  if (st === "ruled") {
+    const bond = appealBondWei(t.stake_amount);
+    const jurorNote = h("p", { class: "hint", text: "Checking how many jurors are available…" });
+    acts.appendChild(jurorNote);
+    read("count_eligible_jurors", [t.trade_id]).then((n) => {
+      const c = Number(n);
+      jurorNote.textContent = c >= 5
+        ? `${c} eligible jurors available (5 needed).`
+        : `Only ${c} eligible jurors available; an appeal needs 5, so appealing would fail right now.`;
+    }).catch(() => { jurorNote.textContent = ""; });
+    const [b, o2] = actionButton(`Appeal with ${weiToGen(bond)} GEN bond`, "secondary", (out) =>
+      write(out, "appeal", "appeal", [t.trade_id], bond));
+    acts.appendChild(actionCard("Appeal", `Either party, before ${fmtTime(t.appeal_deadline)}. Needs at least 5 staked jurors. After the window closes anyone draws the jury using a randomness round that did not exist when you appealed. The jury judges the evidence frozen at the ruling.`, b, o2));
+    const [b3, o3] = actionButton("Finalize without appeal", "", (out) => write(out, "finalize_ruling", "finalize_ruling", [t.trade_id]));
+    acts.appendChild(actionCard("Finalize",
+      isPast(t.appeal_deadline) ? "The appeal window has closed. Anyone can finalize." : "Available after the appeal window closes.", b3, o3));
+  }
+
+  if (st === "appeal_filed") {
+    const [bd, od] = actionButton("Draw the jury", "", (out) => write(out, "draw_jury", "draw_jury", [t.trade_id]));
+    acts.appendChild(actionCard("Draw the jury",
+      isPast(t.appeal_deadline)
+        ? "The appeal window has closed. Anyone can draw the jury now. The draw uses a randomness round published after the window, and the pool is recorded so it can be replayed."
+        : `Available after ${fmtTime(t.appeal_deadline)} (a short wait for the randomness round may follow).`, bd, od));
+    if (Date.now() > new Date(t.appeal_deadline).getTime() + 7 * 86400000) {
+      const [bs, os2] = actionButton("Recover stuck appeal", "secondary", (out) =>
+        write(out, "expire_stuck_appeal", "expire_stuck_appeal", [t.trade_id]));
+      acts.appendChild(actionCard("Appeal stuck",
+        "The jury could not be drawn within 7 days. Anyone can recover: the automated outcome stands and the bond is refunded.", bs, os2));
+    }
+  }
+
+  if (st === "jury_voting") {
+    const j = t.jury;
+    const saved = loadVote(t.trade_id);
+    const voteSel = h("select", null, OUTCOMES.map((x) => h("option", { value: x, text: x })));
+    const saltIn = h("input", { placeholder: "private salt", value: saved?.salt || "", autocapitalize: "off", spellcheck: "false" });
+    if (saved?.vote) voteSel.value = saved.vote;
+    const [bc, oc] = actionButton("Commit vote", "", async (out) => {
+      const salt = saltIn.value.trim() || randomSalt();
+      saltIn.value = salt;
+      saveVote(t.trade_id, voteSel.value, salt);
+      if (!needClient(out)) return null;
+      const juror = String(account || "").toLowerCase();
+      const hash = await sha256Hex(`${voteSel.value}:${salt}:${juror}:${t.trade_id}`);
+      return write(out, "commit_vote", "commit_vote", [t.trade_id, hash]);
+    });
+    acts.appendChild(actionCard("Commit vote (selected jurors only)",
+      `Open until ${fmtTime(j.commit_deadline)}. Your vote and salt are saved in this browser so you can reveal later.`,
+      h("label", { text: "Your vote" }), voteSel, h("label", { text: "Private salt (auto-generated if empty)" }), saltIn, bc, oc));
+
+    const rVote = h("select", null, OUTCOMES.map((x) => h("option", { value: x, text: x })));
+    const rSalt = h("input", { placeholder: "the same salt", value: saved?.salt || "", autocapitalize: "off", spellcheck: "false" });
+    if (saved?.vote) rVote.value = saved.vote;
+    const [br, or2] = actionButton("Reveal vote", "secondary", (out) =>
+      write(out, "reveal_vote", "reveal_vote", [t.trade_id, rVote.value, rSalt.value.trim()]));
+    acts.appendChild(actionCard("Reveal vote",
+      `Opens after ${fmtTime(j.commit_deadline)} and closes ${fmtTime(j.reveal_deadline)}. Must match your commit exactly.`,
+      h("label", { text: "Your vote (same as commit)" }), rVote, h("label", { text: "Same salt" }), rSalt, br, or2));
+
+    const [bf, of2] = actionButton("Finalize jury round", "", (out) => write(out, "finalize_jury", "finalize_jury", [t.trade_id]));
+    acts.appendChild(actionCard("Finalize jury",
+      isPast(j.reveal_deadline) ? "The reveal window has closed. Anyone can finalize." : `Available after ${fmtTime(j.reveal_deadline)}.`, bf, of2));
+    if (Date.now() > new Date(j.reveal_deadline).getTime() + 7 * 86400000) {
+      const [bs, os2] = actionButton("Recover stuck appeal", "secondary", (out) =>
+        write(out, "expire_stuck_appeal", "expire_stuck_appeal", [t.trade_id]));
+      acts.appendChild(actionCard("Appeal stuck",
+        "The jury round could not be finalized within 7 days after reveal. Anyone can recover: the automated outcome stands, the bond is refunded and jurors are unlocked.", bs, os2));
+    }
+  }
+
+  if (st === "finalized") {
+    acts.appendChild(h("a", { href: "#/withdraw", class: "card link", style: "text-align:center;font-weight:700" },
+      "Payouts are credited to balances. Open Balance to withdraw →"));
+  }
+
+  view.appendChild(acts);
+  view.appendChild(h("button", { class: "ghost", text: "Refresh this trade", onclick: () => renderTrade(id) }));
+}
+
+/* ---------- Jury ---------- */
+$("jRegisterBtn").addEventListener("click", async () => {
+  const out = $("jOut");
+  const wei = genToWei($("jStake").value);
+  if (wei === null || wei <= 0n) return showOut(out, "Enter a valid positive stake in GEN.", "err");
+  await write(out, "register_juror", "register_juror", [], wei);
+});
+$("jUnstakeBtn").addEventListener("click", async () => {
+  const out = $("jOut");
+  const wei = genToWei($("jUnstake").value);
+  if (wei === null || wei <= 0n) return showOut(out, "Enter a valid positive amount in GEN.", "err");
+  await write(out, "unstake_juror", "unstake_juror", [wei.toString()]);
+});
+$("jLookupBtn").addEventListener("click", async () => {
+  const out = $("jLookupOut");
+  const addr = $("jAddr").value.trim() || account;
+  if (!addr) return showOut(out, "Enter an address or connect a wallet.", "err");
+  try {
+    const j = await readJson("get_juror", [addr]);
+    showOut(out, j && j.stake !== undefined ? { ...j, stake_gen: weiToGen(j.stake) } : j, "ok");
+  } catch (e) { showOut(out, "Error: " + (e?.message || String(e)), "err"); }
+});
+
+/* ---------- Balance ---------- */
+async function refreshPending() {
+  if (!account) { $("myPending").textContent = "connect wallet"; return; }
+  if (!contractSet()) { $("myPending").textContent = "—"; return; }
+  try { $("myPending").textContent = weiToGen(await read("get_pending_withdrawal", [account])) + " GEN"; }
+  catch (e) { $("myPending").textContent = "—"; }
+}
+async function refreshContractBalance() {
+  if (!contractSet()) { $("contractBal").textContent = "—"; return; }
+  try { $("contractBal").textContent = weiToGen(await read("get_contract_balance")) + " GEN"; }
+  catch (e) { $("contractBal").textContent = "—"; }
+}
+$("checkPendingBtn").addEventListener("click", refreshPending);
+$("withdrawBtn").addEventListener("click", async () => {
+  const r = await write($("wOut"), "withdraw", "withdraw", []);
+  if (r) refreshPending();
+});
+$("wLookupBtn").addEventListener("click", async () => {
+  const out = $("wLookupOut");
+  const addr = $("wAddr").value.trim();
+  if (!addr) return showOut(out, "Enter an address.", "err");
+  try { const raw = await read("get_pending_withdrawal", [addr]); showOut(out, `${weiToGen(raw)} GEN (${raw} wei)`, "ok"); }
+  catch (e) { showOut(out, "Error: " + (e?.message || String(e)), "err"); }
+});
+
+/* ---------- test funding (Studio simulator) ---------- */
+$("fundBtn").addEventListener("click", async () => {
+  const out = $("fundOut");
+  const addr = $("fundAddr").value.trim() || account;
+  const gen = parseInt($("fundAmt").value, 10);
+  if (!addr || !/^0x[0-9a-fA-F]{40}$/.test(addr)) return showOut(out, "Enter a valid 0x address or connect a wallet.", "err");
+  if (!Number.isInteger(gen) || gen < 1 || gen > 100) return showOut(out, "Amount must be a whole number from 1 to 100.", "err");
+  const url = studionet.rpcUrls?.default?.http?.[0];
+  if (!url) return showOut(out, "No RPC URL available for this network.", "err");
+  try {
+    showOut(out, "Requesting…");
+    const amountWei = Number(BigInt(gen) * WEI_PER_GEN);
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sim_fundAccount", params: [addr, amountWei] }) });
+    const body = await res.json();
+    if (body.error) return showOut(out, "The Studio RPC refused: " + JSON.stringify(body.error), "err");
+    showOut(out, "Request accepted. Check the address balance in your wallet in a few seconds.\n" + JSON.stringify(body.result ?? body), "ok");
+  } catch (e) { showOut(out, "Request failed: " + (e?.message || String(e)), "err"); }
+});
+
+/* ---------- router (hash routes: #/, #/create, #/trade/<id>, #/jury, #/withdraw) ---------- */
+function route() {
+  const hash = location.hash || "#/";
+  const m = hash.match(/^#\/trade\/(.+)$/);
+  let name = "home";
+  if (m) name = "trade";
+  else if (hash.startsWith("#/create")) name = "create";
+  else if (hash.startsWith("#/jury")) name = "jury";
+  else if (hash.startsWith("#/withdraw")) name = "withdraw";
+  document.querySelectorAll(".route").forEach((r) => r.classList.toggle("active", r.id === "route-" + name));
+  document.querySelectorAll(".tab-link").forEach((a) => a.classList.toggle("active", a.dataset.tab === (name === "trade" ? "home" : name)));
+  if (name === "home") loadList(false);
+  if (name === "trade") renderTrade(decodeURIComponent(m[1]));
+  if (name === "withdraw") { refreshPending(); refreshContractBalance(); }
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>
