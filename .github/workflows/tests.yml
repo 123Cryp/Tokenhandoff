@@ -1,1 +1,39 @@
-.
+name: Offline test suite
+
+# Runs TokenHandoff's offline unit tests against the self-written genlayer SDK stub
+# in tests/genlayer_stub on every push and pull request. No network access, no pip
+# install and no GenLayer node are required. The suite runs against the documented
+# contract.py, the stripped deploy file and the short-window testnet file, and
+# checks that both generated files are up to date with contract.py.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Tests against contract.py
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Tests against contract_deploy.py
+        run: TH_CONTRACT="$PWD/contract_deploy.py" python3 -m unittest discover -s tests
+
+      - name: Tests against contract_testnet_deploy.py
+        run: TH_CONTRACT="$PWD/contract_testnet_deploy.py" python3 -m unittest discover -s tests
+
+      - name: Generated files are up to date
+        run: |
+          python3 tools/make_deploy.py --testnet
+          git diff --exit-code -- contract_deploy.py contract_testnet_deploy.py
