@@ -131,8 +131,35 @@ Live runs on this deployment (buyer `0xBD767E1958928ff1CAaE1218dbCb4b2f2ada35F6`
 | Buyer cancels, 1 GEN credited | `cancel_trade` | SUCCESS, status `cancelled` | `0x8fc82ba0…3fa55beb` |
 | Buyer withdraws | `withdraw` | SUCCESS, 1 GEN sent out (`0x5a14805b…94ccf3d1`) | `0x8f8829f9…b42daa6e` |
 | Buyer withdraws again with nothing pending | `withdraw` | ERROR, as intended | `0x7d08e0ae…64cb0522` |
+| Resolve trade_0 after the deadline | `resolve_delivery` | SUCCESS: validators fetched the frozen Blockscout instance link, parsed the owner in code and ruled `UNDETERMINED` (ceiling `UNDETERMINED`: "no affirmative evidence of delivery or of non-delivery"; the current owner of BAYC #1 is a third address, not the buyer). Status `ruled`, appeal window open until 2026-10-15 16:04 UTC | see explorer |
 
-After these steps the contract holds exactly the 2 GEN of trade_0's two bonds.
+After these steps the contract holds exactly the 2 GEN of trade_0's two bonds. The `trade_0` ruling is the safe outcome for this evidence: with no seller-to-buyer transfer in the submitted links, the code ceiling cannot reach `ASSET_DELIVERED`, so the model could not have recorded it.
+
+### Live jury run (Tier 2)
+
+The same code with minute-scale windows (`contract_testnet_deploy.py`, class `TokenHandoffTestnet`) was deployed to Studio to run the full appeal path.
+
+| | |
+| --- | --- |
+| Testnet contract (GenLayer Studio) | `0xF58f4d0d39c869BDa9ca109f20D899dbFB067DDd` |
+| Explorer | https://explorer-studio.genlayer.com/address/0xF58f4d0d39c869BDa9ca109f20D899dbFB067DDd |
+
+Buyer `0xBD767E1958928ff1CAaE1218dbCb4b2f2ada35F6`, seller `0x8EDC6794937Ed1DC6476f88A51f1cC52b4fC571C`, 5 GEN bond each, five jurors with a 1 GEN stake each.
+
+| Step | Call | Result | Tx |
+| --- | --- | --- | --- |
+| Five jurors register (1 GEN each) | `register_juror` | SUCCESS x5 | `0x8de63fe1…358aa567`, `0x2513017c…79a3fa85`, `0xdd587acf…cc47e063`, `0xd90d04f4…39a81222`, `0xa8cd8e0f…77699a08` |
+| Create trade_0 (BAYC #1, ERC-721) | `create_trade` | SUCCESS | `0xeb5138cb…d55dd9f2` |
+| Seller accepts | `accept_trade` | SUCCESS | `0x283ed638…6edc42cd` |
+| Both parties submit the instance link | `submit_proof` | SUCCESS x2, status `proof_frozen` | `0x100c2af1…5dbeba08`, `0xbabb4147…58c4929f` |
+| Resolve after the deadline | `resolve_delivery` | SUCCESS, `UNDETERMINED`, status `ruled` | `0x0b9d4c2a…343d46a6` |
+| Buyer appeals with a 1 GEN bond | `appeal` | SUCCESS, pool of 5 jurors frozen | `0xb06b3941…c055a7a4` |
+| Draw after the appeal window, from a drand round that did not exist at appeal time | `draw_jury` | SUCCESS, 5 jurors selected | `0x00b9bd74…fe39beff` |
+| Five commits | `commit_vote` | SUCCESS x5 | `0x67921a0f…9d9368b6`, `0xa65abdfb…6c173a69`, `0x173c769a…08023577`, `0xa7577371…ec538654`, `0xe80c4a85…e24c70de` |
+| Five reveals (all `UNDETERMINED`) | `reveal_vote` | SUCCESS x5 | `0x83435c33…e4fc62cf`, `0xe466c21e…ed8af9a7`, `0x499ac838…c06e1701`, `0xe52693ea…293ffcc5`, `0xecab52de…d99ca0bd` |
+| Finalize after the reveal window | `finalize_jury` | SUCCESS: `verification_passed` true, `final_outcome` `UNDETERMINED`, `payout_settled` true, status `finalized` | see explorer |
+
+The jury majority matched an outcome the validators derived on their own from the frozen evidence, so it stood, nobody was slashed and the bonds were settled.
 
 See `ARCHITECTURE.md` for the trust model and the limitations that are disclosed rather than hidden.
 
